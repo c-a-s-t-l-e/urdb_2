@@ -150,7 +150,8 @@ get_plans_in_effect <- function(dataset) {
     group_by(utilityName) |>
     # Filter by year and endDate value
     filter(
-      effectiveDate_year >= 2021,
+      # keep the latest plan either greater than 2021 or the year that's the latest
+      effectiveDate_year >= min(2021, max(effectiveDate_year)),
       is.na(endDate) | endDate > Sys.Date()
     ) |>
     # Group by utility and plan
