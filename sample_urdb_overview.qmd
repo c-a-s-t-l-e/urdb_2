@@ -1,0 +1,164 @@
+---
+format: 
+  html:
+    embed-resources: true
+editor: visual
+---
+
+## Overview of Some URDB Data
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+library(arrow)
+library(gt)
+library(tidyverse)
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| label: tbl-metrics
+#| tbl-cap: "Overall Dataset Metrics"
+
+df <- read_parquet("./urdb_rates_2021_2026.parquet")
+
+rates_summary <- df |> 
+  summarize(
+    total_rows = n(),
+    # Energy Rate Summary
+    avg_energy = mean(total_energy_rate, na.rm = TRUE),
+    min_energy = min(total_energy_rate, na.rm = TRUE),
+    max_energy = max(total_energy_rate, na.rm = TRUE),
+    na_energy  = sum(as.integer(is.na(total_energy_rate))),
+    
+    # Demand Rate Summary
+    avg_demand = mean(total_energy_rate, na.rm = TRUE),
+    min_demand = min(total_energy_rate, na.rm = TRUE),
+    max_demand = max(total_energy_rate, na.rm = TRUE),
+    na_demand  = sum(as.integer(is.na(total_energy_rate))),
+    
+    # Fixed Charge Summary
+    avg_fixed  = mean(fixedChargeFirstMeter, na.rm = TRUE),
+    max_fixed  = max(fixedChargeFirstMeter, na.rm = TRUE),
+    min_fixed  = min(fixedChargeFirstMeter, na.rm = TRUE),
+    na_fixed   = sum(as.integer(is.na(fixedChargeFirstMeter)))
+  ) |> 
+  collect()
+
+rates_summary |>
+  gt() |>
+  tab_header(
+    title = "Sample Utility Rates Dataset Profile",
+  ) |>
+  fmt_integer(total_rows, pattern = "{x} rows") |>
+  fmt_currency(columns = c(avg_energy, min_energy, max_energy, avg_fixed, max_fixed)) |>
+  cols_label(
+    total_rows = "Total Count",
+    avg_energy = "Avg Energy Rate",
+    max_energy = "Max Energy Rate",
+    min_energy = "Min Energy Rate",
+    na_energy = "Missing Energy",
+    avg_demand = "Avg Demand Rate",
+    max_demand = "Max Demand Rate",
+    min_demand = "Min Demand Rate",
+    na_demand = "Missing Demand",
+    max_fixed = "Max Fixed Charge",
+    min_fixed = "Min Fixed Charge",
+    avg_fixed = "Avg Fixed Charge",
+    na_fixed = "Missing Fixed Charge"
+  ) |>
+  opt_interactive(use_search = TRUE) # Makes the table searchable in the HTML doc
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+hourly_summary <- df %>%
+  group_by(hour, week_part) %>%
+  summarize(avg_energy_rate = mean(total_energy_rate, na.rm = TRUE)) %>%
+  collect() # <--- THIS is the magic word. It executes the query and brings the small summary into memory.
+
+ggplot(hourly_summary, aes(x = hour, y = avg_energy_rate, color = week_part)) +
+  geom_line(linewidth = 1) +  # Changed 'size' to 'linewidth'
+  geom_point(size = 2) +      # 'size' is still correct for points
+  theme_minimal() +
+  labs(
+    color = "Portion of Week",              
+    x = "Hour of the Day",                     
+    y = "Average Energy Rate ($/kWh)", 
+    title = "Hourly Energy Rate Trends"
+  )
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+hourly_summary <- df %>%
+  group_by(month, hour, week_part) %>%
+  summarize(avg_energy_rate = mean(total_energy_rate, na.rm = TRUE)) %>%
+  collect() # <--- THIS is the magic word. It executes the query and brings the small summary into memory.
+
+ggplot(hourly_summary, aes(x = hour, y = avg_energy_rate, color = week_part)) +
+  geom_line(linewidth = 1) +  # Changed 'size' to 'linewidth'
+  geom_point(size = 2) +      # 'size' is still correct for points
+  theme_minimal() +
+  labs(
+    color = "Portion of Week",              
+    x = "Hour of the Day",                     
+    y = "Average Energy Rate ($/kWh)", 
+    title = "Hourly Energy Rate Trends"
+  ) +
+  facet_wrap(
+    ~month
+  )
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+hourly_summary <- df %>%
+  group_by(hour, week_part) %>%
+  summarize(avg_demand_rate = mean(total_demand_rate, na.rm = TRUE)) %>%
+  collect() # <--- THIS is the magic word. It executes the query and brings the small summary into memory.
+
+ggplot(hourly_summary, aes(x = hour, y = avg_demand_rate, color = week_part)) +
+  geom_line(linewidth = 1) +  # Changed 'size' to 'linewidth'
+  geom_point(size = 2) +      # 'size' is still correct for points
+  theme_minimal() +
+  labs(
+    color = "Portion of Week",              
+    x = "Hour of the Day",                     
+    y = "Average Demand Rate ($/kW)", 
+    title = "Hourly Demand Rate Trends"
+  ) 
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+hourly_summary <- df %>%
+  group_by(month, hour, week_part) %>%
+  summarize(avg_demand_rate = mean(total_demand_rate, na.rm = TRUE)) %>%
+  collect() # <--- THIS is the magic word. It executes the query and brings the small summary into memory.
+
+ggplot(hourly_summary, aes(x = hour, y = avg_demand_rate, color = week_part)) +
+  geom_line(linewidth = 1) +  # Changed 'size' to 'linewidth'
+  geom_point(size = 2) +      # 'size' is still correct for points
+  theme_minimal() +
+  labs(
+    color = "Portion of Week",              
+    x = "Hour of the Day",                     
+    y = "Average Demand Rate ($/kW)", 
+    title = "Hourly Demand Rate Trends"
+  ) +
+  facet_wrap(
+    ~month
+  )
+```
