@@ -26,12 +26,16 @@ generate_validation_report <- function(input_dataset, output_dataset, output_htm
     ) |>
     # Test 4: No ag or electric furnace plans
     col_vals_expr(
-      expr = ~ !grepl("agriculture|agricultural|agribusiness|pumping|irrigation|furnace", rateName,
+      expr = ~ !grepl("agriculture|agricultural|agribusiness|pumping|irrigation|furnace|heating|conditioning|catfish", rateName,
         ignore.case = TRUE
       ),
       label = "No agricultural or electric furnace plans"
     ) |>
-    # Test 5: Count check between input and output (as a warning)
+    # Test 5: No negative demand rates
+    col_vals_gte(columns = total_demand_rate, value = 0, label = "Demand Rate >= 0") |>
+    # Test 6: No negative energy rates
+    col_vals_gte(columns = total_energy_rate, value = 0, label = "Energy Rate >= 0") |>
+    # Test 7: Count check between input and output (as a warning)
     col_vals_expr(
       expr = ~ unique_output_plans == unique_input_plans,
       label = paste0("Plan count matches input (Expected: ", unique_input_plans, ", Got: ", unique_output_plans, ")"),

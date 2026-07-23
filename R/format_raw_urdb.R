@@ -72,7 +72,7 @@ remove_irrigation_plans <- function(dataset) {
   dataset |>
     filter(!str_detect(
       rateName,
-      regex("irrigation|agricultur|agribusiness|pumping|furnace", ignore_case = TRUE)
+      regex("irrigation|agricultur|agribusiness|pumping|furnace|heating|conditioning", ignore_case = TRUE)
     ))
 }
 
@@ -100,6 +100,7 @@ replace_missing_schedules <- function(dataset) {
 reformat_urdb <- function(dataset) {
   dataset |>
     mutate(
+      revision_year = year(revision_date),
       effectiveDate_year = year(effectiveDate),
       effectiveDate_month = month(effectiveDate),
       endDate_year = year(endDate),
@@ -108,6 +109,7 @@ reformat_urdb <- function(dataset) {
     select(
       eiaId,
       revision_date,
+      revision_year,
       effectiveDate,
       effectiveDate_year,
       effectiveDate_month,
@@ -145,27 +147,71 @@ reformat_urdb <- function(dataset) {
 #     )
 # }
 
+# get_plans_in_effect <- function(dataset) {
+#   dataset |>
+#     group_by(utilityName) |>
+#     # Filter by year and endDate value
+#     filter(
+#       # keep the latest plan either greater than 2021 or the year that's the latest
+#       is.na(effectiveDate_year) | effectiveDate_year >= min(2021, max(effectiveDate_year, na.rm = TRUE)), ,
+#       is.na(endDate) | endDate > Sys.Date()
+#     ) |>
+#     # Group by utility and plan
+#     group_by(utilityName, rateName) |>
+#     # Sort to have missing endDate first
+#     arrange(desc(is.na(endDate)), .by_group = TRUE) |>
+#     # Take the top row for each group
+#     slice_head(n = 1) |>
+#     ungroup()
+# }
+
 get_plans_in_effect <- function(dataset) {
+  # 1. Exception handling: Missing columns
+  required_cols <- c("utilityName", "rateName", "effectiveDate_year", "endDate")
+  missing_cols <- setdiff(required_cols, colnames(dataset))
+  if (length(missing_cols) > 0) {
+    stop(paste("Dataset is missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+
+  # 2. Exception handling: Empty dataset
+  if (nrow(dataset) == 0) {
+    return(dataset)
+  }
+
   dataset |>
-    group_by(utilityName) |>
-    # Filter by year and endDate value
-    filter(
-      # keep the latest plan either greater than 2021 or the year that's the latest
-      effectiveDate_year >= min(2021, max(effectiveDate_year)),
-      is.na(endDate) | endDate > Sys.Date()
+    # Ensure endDate is treated as a Date object
+    mutate(
+      endDate = as.Date(endDate)
     ) |>
-    # Group by utility and plan
-    group_by(utilityName, rateName) |>
-    # Sort to have missing endDate first
-    arrange(desc(is.na(endDate)), .by_group = TRUE) |>
-    # Take the top row for each group
-    slice_head(n = 1) |>
+    # This evaluates the latest year logic on a per-plan basis.
+    group_by(eiaId, utilityName) |>
+    dplyr::slice_max(order_by = revision_year, with_ties = TRUE) |>
+    # filter(
+    #   #   # Keep if year is missing, OR if it's the latest version of THIS specific plan
+    #   #
+    #   revision_year >= max(revision_year)
+    #   #
+    #   #   # is.na(effectiveDate_year) |
+    #   #   #   effectiveDate_year >= if (all(is.na(effectiveDate_year))) {
+    #   #   #     2021
+    #   #   #   } else {
+    #   #   #     min(2021, max(effectiveDate_year, na.rm = TRUE))
+    #   #   #   },
+    #   #
+    #   #   # Keep if endDate is missing, OR if it is in the future
+    #   #   # (is.na(endDate) | endDate > Sys.Date())
+    # ) |>
+    # # Sort to put NA end dates first, using the newest effective year to break ties
+    # # arrange(desc(is.na(endDate)), desc(revision_year), .by_group = TRUE) |>
+    # # Keep only the single best active version of this plan
+    # # slice_head(n = 1) |>
     ungroup()
 }
 
 
 format_raw_urdb <- function(dataset) {
   dataset |>
+    filter(sector == "Commercial") |>
     flatten_dates() |>
     get_latest_revised_plans() |>
     reformat_urdb() |>
@@ -173,8 +219,7 @@ format_raw_urdb <- function(dataset) {
     fill_mins_and_maxes() |>
     fill_fixed_charges() |>
     convert_daily_fixed_charge() |>
-    remove_irrigation_plans() |>
+    # remove_irrigation_plans() |>
     remove_null_objects() |>
-    replace_missing_schedules() |>
-    filter(sector == "Commercial")
+    replace_missing_schedules()
 }

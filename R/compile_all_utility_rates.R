@@ -18,7 +18,7 @@ compile_all_utility_rates <- function(urdb_reformated, demand_total_sched, energ
   # 3. Process and prepare energy schedule components
   energy_part <- energy_total_sched |>
     select(
-      eiaId, rateName, utilityName, week_part, month, hour,
+      eiaId, rateName, utilityName, week_part, multi_unit, month, hour,
       period, levelized_rate
     ) |>
     rename(

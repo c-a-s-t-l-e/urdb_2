@@ -79,6 +79,10 @@ list(
     format = "qs"
   ),
   tar_target(
+    energy_multi_unit,
+    make_multi_unit_flag((energy_combo))
+  ),
+  tar_target(
     demand_cost,
     calculate_levelized_demand_costs(demand_combo,
       peak_demand_kW = 500
@@ -94,7 +98,7 @@ list(
   ),
   tar_target(
     energy_cost,
-    calculate_levelized_energy_costs(energy_combo,
+    calculate_levelized_energy_costs(energy_multi_unit,
       monthly_usage_kWh = 2000,
       peak_demand_kW = 500
     ),
@@ -116,27 +120,52 @@ list(
     format = "qs"
   ),
   tar_target(
-    clean_utility_rates,
-    remove_problem_rate_plans(utility_rates),
+    no_irrelevant_plans,
+    remove_irrelevant_plans(utility_rates),
+    format = "qs"
+  ),
+  tar_target(
+    no_high_fixed_charges,
+    remove_high_fixed_charge_plans(no_irrelevant_plans),
+    format = "qs"
+  ),
+  tar_target(
+    no_high_energy_rate_plans,
+    remove_high_energy_rate_plans(no_high_fixed_charges),
+    format = "qs"
+  ),
+  # tar_target(
+  #   multi_unit_plans,
+  #   remove_single_unit_plans(no_high_energy_rate_plans),
+  #   format = "qs"
+  # ),
+  tar_target(
+    no_multi_unit_plans,
+    remove_multi_unit_plans(no_high_energy_rate_plans),
+    format = "qs"
+  ),
+  tar_target(
+    no_negative_rate_plans,
+    remove_negative_rate_plans(no_multi_unit_plans),
     format = "qs"
   ),
   tar_target(
     validation_dashboard,
     generate_validation_report(
       input_dataset = urdb_reformated,
-      output_dataset = clean_utility_rates,
+      output_dataset = no_negative_rate_plans,
       output_html_path = "outputs/data_quality_report.html"
     ),
     format = "file"
   ),
   tar_target(
     parquet_rates,
-    write_parquet(clean_utility_rates, "outputs/utility_rates.parquet"),
+    write_parquet(no_multi_unit_plans, "outputs/utility_rates.parquet"),
     format = "qs"
   ),
   tar_target(
     json_rates,
-    convert_to_json_format(clean_utility_rates),
+    convert_to_json_format(no_multi_unit_plans),
     format = "qs"
   ),
   tar_target(

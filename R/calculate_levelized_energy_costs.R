@@ -4,9 +4,9 @@ calculate_levelized_energy_costs <- function(dataset, monthly_usage_kWh = 2000, 
   peak_demand_kVA <- peak_demand_kW / 0.9
 
   dataset |>
-    distinct(eiaId, rateName, utilityName, period, tier, unit, max, total_rate) |>
+    distinct(eiaId, rateName, utilityName, period, tier, unit, multi_unit, max, total_rate) |>
     arrange(eiaId, rateName, period, tier) |>
-    group_by(eiaId, rateName, utilityName, period) |>
+    group_by(eiaId, rateName, utilityName, multi_unit, period) |>
     mutate(
       # Treat NA, -1, AND 0 as Infinity (uncapped tiers)
       raw_max = case_when(
